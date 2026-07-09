@@ -1,0 +1,12 @@
+# Dependências
+node_modules/
+
+# Variáveis de ambiente
+.env
+
+# Configurações da IDE
+.vscode/
+.idea/
+
+# Arquivos temporários
+*.tmp
