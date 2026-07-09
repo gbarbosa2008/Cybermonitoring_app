@@ -1,0 +1,126 @@
+<%- include('../layouts/header') %>
+
+    <div class="main" id="reportsSection">
+        <header class="page-header">
+            <div>
+                <h1>Relatórios</h1>
+                <p>Exportação de dados</p>
+            </div>
+        </header>
+
+        <div class="content-area">
+            <div class="wide-card report-panel">
+                <div class="report-panel-header">
+                    <div>
+                        <h3>Filtros do Relatório</h3>
+                        <p>Veja os ativos e exporte apenas o que precisa.</p>
+                    </div>
+                </div>
+
+                <div class="filters-section mb-4 no-print">
+                    <div class="row g-2">
+                        <div class="col-md-6">
+                            <label for="reportSetor" class="form-label">Filtro de setor</label>
+                            <select class="form-control" id="reportSetor" name="reportSetor">
+                                <option value="">Setores</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="reportStatus" class="form-label">Filtro de status</label>
+                            <select class="form-control" id="reportStatus" name="reportStatus">
+                                <option value="">Status</option>
+                                <option value="NORMAL">Normal</option>
+                                <option value="ATENCAO">Atenção</option>
+                                <option value="CRITICO">Crítico</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="report-actions no-print" style="display: flex; gap: 10px; margin-bottom: 20px;">
+                    <input type="text" placeholder="Buscar..." id="searchReport" class="form-control" style="flex: 1;">
+                    <button type="button" class="btn btn-primary" onclick="exportPDF()">Gerar PDF</button>
+                    <button type="button" class="btn btn-primary" onclick="exportExcel()">Exportar Excel</button>
+                </div>
+            </div>
+
+            <div id="reportContent" class="wide-card report-summary-section">
+                <div class="report-summary-grid">
+                    <div class="summary-card report-metric-card">
+                        <h3>Total</h3>
+                        <p id="reportTotal" class="big-number"><%= totalAtivos || 0 %></p>
+                    </div>
+                    <div class="summary-card report-metric-card">
+                        <h3>Normal</h3>
+                        <p id="reportNormal" class="big-number green"><%= onlineCount || 0 %></p>
+                    </div>
+                    <div class="summary-card report-metric-card">
+                        <h3>Atenção</h3>
+                        <p id="reportAtencao" class="big-number warning"><%= statusResumo.atencao || 0 %></p>
+                    </div>
+                    <div class="summary-card report-metric-card">
+                        <h3>Crítico</h3>
+                        <p id="reportCritico" class="big-number critical"><%= statusResumo.critico || 0 %></p>
+                    </div>
+                </div>
+
+                <div class="table-responsive report-table-wrapper">
+                    <table class="list-table-extended report-table" id="reportTable">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Nome / IP</th>
+                                <th>MAC</th>
+                                <th>Setor</th>
+                                <th class="center-cell">Uso</th>
+                                <th>SO</th>
+                                <th>Última atualização</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <% if (ativos && ativos.length > 0) { %>
+                                <% ativos.forEach(item => { %>
+                                    <% const usageBadges = [] %>
+                                    <% if (item.uso_cpu != null) {
+                                        const cpuValue = Number(item.uso_cpu).toFixed(2)
+                                        const cpuStatus = item.uso_cpu >= 90 ? 'critical' : item.uso_cpu >= 70 ? 'warning' : 'good'
+                                        usageBadges.push(`<span class="usage-chip ${cpuStatus}">CPU: ${cpuValue}%</span>`)
+                                    } %>
+                                    <% if (item.uso_memoria != null) {
+                                        const memValue = Number(item.uso_memoria).toFixed(2)
+                                        const memStatus = item.uso_memoria >= 90 ? 'critical' : item.uso_memoria >= 70 ? 'warning' : 'good'
+                                        usageBadges.push(`<span class="usage-chip ${memStatus}">Memória: ${memValue}%</span>`)
+                                    } %>
+                                    <% if (item.uso_disco != null) {
+                                        const discoValue = Number(item.uso_disco).toFixed(2)
+                                        const discoStatus = item.uso_disco >= 90 ? 'critical' : item.uso_disco >= 70 ? 'warning' : 'good'
+                                        usageBadges.push(`<span class="usage-chip ${discoStatus}">Disco: ${discoValue}%</span>`)
+                                    } %>
+                                    <tr data-setor="<%= item.setor || '' %>" data-status="<%= item.status_monitoramento || '' %>" data-nome="<%= item.nome_maquina || '' %>" data-ip="<%= item.ip || '' %>">
+                                        <td><%= item.patrimonio || item.id_ativo || item.nome_maquina || '-' %></td>
+                                        <td><%= item.nome_maquina || '-' %><br><small><%= item.ip || '' %></small></td>
+                                        <td><%= item.mac_address || item.mac || '-' %></td>
+                                        <td><%= item.setor || '-' %></td>
+                                        <td class="center-cell"><div class="usage-cell"><%- usageBadges.join('') || '-' %></div></td>
+                                        <td><%= item.sistema_operacional || item.so || '-' %></td>
+                                        <td><%= item.ultima_atualizacao ? new Date(item.ultima_atualizacao).toLocaleString('pt-BR') : '-' %></td>
+                                    </tr>
+                                <% }) %>
+                            <% } else { %>
+                                <tr data-fallback="true"><td colspan="7" style="text-align:center; color:#999;">Nenhum ativo encontrado</td></tr>
+                            <% } %>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+           
+
+    <script>
+        window.reportSetores = JSON.parse('<%- JSON.stringify(setores || []) %>');
+    </script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="/js/script.js" defer></script>

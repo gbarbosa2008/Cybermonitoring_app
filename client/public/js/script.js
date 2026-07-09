@@ -1,0 +1,648 @@
+document.addEventListener('DOMContentLoaded', () => {
+
+    const inputFoto = document.getElementById('foto') 
+    const previewBox = document.getElementById('preview-box') 
+    const previewImg = document.getElementById('preview-img') 
+
+    if(inputFoto && previewBox && previewImg){
+        if(!previewImg.getAttribute('src') || previewImg.getAttribute('src') === "..." || previewImg.getAttribute('src') === ""){
+            previewImg.src = '/img/sem-foto.png'
+            previewBox.style.display = 'block'
+        }
+        // Seleciona uma imagem
+        inputFoto.addEventListener('change', function(evento) {
+            // Guarda as informações da imagem
+            const arquivo = evento.target.files[0]
+
+            // Se tiver um arquivo silecionado
+            if(arquivo){
+                // Usa o filerador para o navegador ler arquivos do PC
+                const leitorDeArquivo = new FileReader()
+
+                // Quando a imagem for carregada na memória, substitui o sem foto para a imagem selecionada
+                leitorDeArquivo.onload = function(e){
+                    previewImg.src = e.target.result
+                    previewBox.style.display = 'block'
+                }
+                // Converte a imagem para Base64 para o html ler a imagem como texto
+                leitorDeArquivo.readAsDataURL(arquivo)
+            }
+            // Se cancelar o envio, volta a foto padrão
+            else{
+                previewImg.src = '/img/sem-foto.png'
+                previewBox.style.display = 'block'
+            }
+        })
+    }
+})
+
+// Dashboard pie rendering
+document.addEventListener('DOMContentLoaded', () => {
+    const pie = document.getElementById('dashboardPie')
+    if(!pie) return
+
+    const good = Number(pie.dataset.good || 0)
+    const warn = Number(pie.dataset.warning || 0)
+    const crit = Number(pie.dataset.critical || 0)
+    const total = good + warn + crit || 1
+
+    const pGood = Math.round((good / total) * 100)
+    const pWarn = Math.round((warn / total) * 100)
+    const pCrit = 100 - pGood - pWarn
+
+    pie.style.background = `conic-gradient(#2ecc71 0% ${pGood}%, #f2e76b ${pGood}% ${pGood + pWarn}%, #e74c3c ${pGood + pWarn}% 100%)`
+
+    // Atualiza contadores (se existirem)
+    const gEl = document.getElementById('countGood')
+    const wEl = document.getElementById('countWarn')
+    const cEl = document.getElementById('countCrit')
+    if(gEl) gEl.textContent = good
+    if(wEl) wEl.textContent = warn
+    if(cEl) cEl.textContent = crit
+})
+
+// Logout handler
+document.addEventListener('DOMContentLoaded', () => {
+    const logoutBtn = document.querySelector('.logout')
+    if(logoutBtn) {
+        logoutBtn.addEventListener('click', (e) => {
+            e.preventDefault()
+            fetch('/usuarios/logout')
+                .then(() => window.location.href = '/login')
+                .catch(err => console.error('Erro:', err))
+        })
+    }
+})
+
+// Gerenciar Ativos (CRUD) - conecta a UI com as rotas /ativos
+document.addEventListener('DOMContentLoaded', () => {
+    // Detecta se estamos na página de gerenciar computadores
+    const form = document.getElementById('formAativo')
+    const tableBody = document.querySelector('.card-list table tbody')
+    const filterSetor = document.getElementById('filterSetor')
+    const filterStatus = document.getElementById('filterStatus')
+
+    if (!form || !tableBody) return
+
+    let editId = null
+
+    async function loadAtivos() {
+        try {
+            const res = await fetch('/ativos')
+            const json = await res.json()
+            if (!json.sucesso) throw new Error(json.mensagem || 'Erro ao carregar')
+
+            renderTable(json.dados || [])
+        } catch (err) {
+            console.error('Erro ao carregar ativos:', err)
+            tableBody.innerHTML = '<tr><td colspan="6">Erro ao carregar ativos</td></tr>'
+        }
+    }
+
+    function renderTable(ativos) {
+        // Aplicar filtros
+        const setor = filterSetor ? filterSetor.value : ''
+        const status = filterStatus ? filterStatus.value : ''
+
+        const rows = ativos.filter(a => {
+            if (setor && a.setor !== setor) return false
+            if (status) {
+                const s = (a.status_cadastro || '').toLowerCase()
+                if (status === 'ativo' && s !== 'ativo') return false
+                if (status === 'inativo' && s !== 'inativo') return false
+            }
+            return true
+        }).map(a => {
+            return `
+                <tr data-id="${a.id_ativo}">
+                    <td>${a.id_ativo || a.nome_maquina}</td>
+                    <td>${a.nome_maquina || ''}<br><small>${a.ip || ''}</small></td>
+                    <td>${a.mac || a.mac_address || ''}</td>
+                    <td>${a.setor || ''}</td>
+                    <td>${a.sistema_operacional || a.so || ''}</td>
+                    <td>
+                        <button class="btn btn-sm btn-warning btn-edit">Editar</button>
+                        <button class="btn btn-sm btn-danger btn-delete">Apagar</button>
+                    </td>
+                </tr>
+            `
+        }).join('')
+
+        tableBody.innerHTML = rows || '<tr><td colspan="6" class="text-center">Nenhum ativo encontrado</td></tr>'
+
+        // Bind actions
+        tableBody.querySelectorAll('.btn-delete').forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+                const tr = e.target.closest('tr')
+                const id = tr.dataset.id
+                if (!confirm('Confirmar exclusão do ativo?')) return
+                try {
+                    const resp = await fetch('/ativos/' + id, { method: 'DELETE' })
+                    const j = await resp.json()
+                    if (!j.sucesso) throw new Error(j.mensagem || 'Erro')
+                    loadAtivos()
+                } catch (err) {
+                    console.error('Erro ao deletar ativo:', err)
+                    alert('Erro ao deletar ativo')
+                }
+            })
+        })
+
+        tableBody.querySelectorAll('.btn-edit').forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+                const tr = e.target.closest('tr')
+                const id = tr.dataset.id
+                try {
+                    const resp = await fetch('/ativos/' + id)
+                    const j = await resp.json()
+                    if (!j.sucesso) throw new Error(j.mensagem || 'Erro')
+                    populateForm(j.dados)
+                } catch (err) {
+                    console.error('Erro ao obter ativo:', err)
+                    alert('Erro ao obter ativo para edição')
+                }
+            })
+        })
+    }
+
+    function populateForm(a) {
+        editId = a.id_ativo
+        form.querySelector('[name="ip"]').value = a.ip || ''
+        form.querySelector('[name="nomeMaquina"]').value = a.nome_maquina || ''
+        form.querySelector('[name="idComputador"]').value = a.patrimonio || ''
+        form.querySelector('[name="macAddress"]').value = a.mac_address || ''
+        form.querySelector('[name="patrimonio"]').value = a.patrimonio || ''
+        form.querySelector('[name="numeroSerie"]').value = a.numero_serie || ''
+        form.querySelector('[name="setor"]').value = a.setor || ''
+        form.querySelector('[name="laboratorio"]').value = a.laboratorio || ''
+        form.querySelector('[name="so"]').value = a.sistema_operacional || a.so || ''
+        window.scrollTo({ top: 0, behavior: 'smooth' })
+    }
+
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault()
+        const data = new FormData(form)
+        const payload = {
+            nome_maquina: data.get('nomeMaquina'),
+            ip: data.get('ip'),
+            patrimonio: data.get('patrimonio') || data.get('idComputador') || null,
+            numero_serie: data.get('numeroSerie') || null,
+            mac_address: data.get('macAddress') || null,
+            setor: data.get('setor'),
+            laboratorio: data.get('laboratorio') || null,
+            so: data.get('so') || null
+        }
+
+        try {
+            let resp
+            if (editId) {
+                resp = await fetch('/ativos/' + editId, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                })
+            } else {
+                resp = await fetch('/ativos', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                })
+            }
+
+            const j = await resp.json()
+            if (!j.sucesso) throw new Error(j.mensagem || 'Erro')
+            // reset form
+            editId = null
+            form.reset()
+            loadAtivos()
+            alert(j.mensagem || 'Operação realizada com sucesso')
+        } catch (err) {
+            console.error('Erro ao salvar ativo:', err)
+            alert('Erro ao salvar ativo')
+        }
+    })
+
+    // filtros
+    if (filterSetor) filterSetor.addEventListener('change', loadAtivos)
+    if (filterStatus) filterStatus.addEventListener('change', loadAtivos)
+
+    // inicial
+    loadAtivos()
+})
+
+// --- Gerenciar Usuários (básico) ---
+document.addEventListener('DOMContentLoaded', () => {
+    const userForm = document.getElementById('userForm')
+    const usersTable = document.getElementById('usersTable')
+
+    if (!userForm) return
+
+    window.clearUserForm = function() {
+        userForm.reset()
+    }
+
+    window.saveUser = async function(e) {
+        e.preventDefault()
+        const nome = document.getElementById('userNameInput').value.trim()
+        const email = document.getElementById('userEmailInput').value.trim()
+        const senha = document.getElementById('userPasswordInput').value || ''
+        const role = document.getElementById('userRoleSelect').value
+
+        if (!nome || !email) {
+            alert('Nome e email são obrigatórios')
+            return
+        }
+
+        try {
+            const fd = new FormData()
+            fd.append('nome', nome)
+            fd.append('email', email)
+            fd.append('senha', senha)
+            // mapping basic role to perfil id if needed
+            fd.append('id_perfil', role === 'admin' ? '1' : '2')
+
+            const res = await fetch('/usuarios/cadastrar', { method: 'POST', body: fd })
+            if (res.ok) return window.location.reload()
+            const txt = await res.text()
+            console.error('Erro salvar usuário', res.status, txt)
+            alert('Erro ao salvar usuário')
+        } catch (err) {
+            console.error(err)
+            alert('Erro ao salvar usuário')
+        }
+    }
+
+    // optional: attempt to populate usersTable if an API exists
+    async function loadUsers() {
+        if (!usersTable) return
+        try {
+            const r = await fetch('/api/usuarios')
+            if (!r.ok) return
+            const j = await r.json()
+            const rows = (j.usuarios || []).map(u => `
+                <tr data-id="${u.id_usuario}">
+                    <td>${u.nome}</td>
+                    <td>${u.email}</td>
+                    <td>${u.nome_perfil || ''}</td>
+                    <td>${u.status || ''}</td>
+                    <td style="text-align:center">
+                        <a href="/usuarios/${u.id_usuario}/editar" class="btn btn-sm btn-warning">Editar</a>
+                    </td>
+                </tr>
+            `).join('')
+            usersTable.querySelector('tbody').innerHTML = rows || '<tr><td colspan="5" class="text-center">Nenhum usuário</td></tr>'
+        } catch (_) {
+            // ignore
+        }
+    }
+
+    loadUsers()
+})
+
+// Relatórios Admin - renderização e exportação de dados
+function fillSetorOptions() {
+    const select = document.getElementById('reportSetor')
+    if (!select || !Array.isArray(window.reportSetores)) return
+
+    const existing = Array.from(select.options).map(opt => opt.value)
+    window.reportSetores.forEach(setor => {
+        if (!setor || existing.includes(setor.nome)) return
+        const option = document.createElement('option')
+        option.value = setor.nome
+        option.textContent = setor.nome
+        select.appendChild(option)
+    })
+}
+
+function normalizeText(value) {
+    return (value || '').toString().trim().toLowerCase()
+}
+
+function renderReport() {
+    const setor = normalizeText(document.getElementById('reportSetor')?.value)
+    const status = normalizeText(document.getElementById('reportStatus')?.value)
+    const query = normalizeText(document.getElementById('searchReport')?.value)
+    const tbody = document.querySelector('#reportTable tbody')
+    if (!tbody) return
+
+    const rows = Array.from(tbody.querySelectorAll('tr')).filter(row => row.dataset.fallback !== 'true')
+    let visibleCount = 0
+    let normalCount = 0
+    let atencaoCount = 0
+    let criticoCount = 0
+
+    rows.forEach(row => {
+        const rowSetor = normalizeText(row.dataset.setor)
+        const rowStatus = normalizeText(row.dataset.status)
+        const rowText = normalizeText(row.textContent)
+
+        const matchesSetor = !setor || rowSetor === setor
+        const matchesStatus = !status || rowStatus === status
+        const matchesQuery = !query || rowText.includes(query)
+
+        const visible = matchesSetor && matchesStatus && matchesQuery
+        row.style.display = visible ? '' : 'none'
+        if (visible) {
+            visibleCount++
+            if (rowStatus === 'normal') normalCount++
+            else if (rowStatus === 'atencao') atencaoCount++
+            else if (rowStatus === 'critico') criticoCount++
+        }
+    })
+
+    const totalEl = document.getElementById('reportTotal')
+    const normalEl = document.getElementById('reportNormal')
+    const atencaoEl = document.getElementById('reportAtencao')
+    const criticoEl = document.getElementById('reportCritico')
+
+    if (totalEl) totalEl.textContent = visibleCount
+    if (normalEl) normalEl.textContent = normalCount
+    if (atencaoEl) atencaoEl.textContent = atencaoCount
+    if (criticoEl) criticoEl.textContent = criticoCount
+
+    let fallbackRow = tbody.querySelector('tr[data-fallback="true"]')
+    if (!fallbackRow) {
+        fallbackRow = document.createElement('tr')
+        fallbackRow.dataset.fallback = 'true'
+        fallbackRow.innerHTML = '<td colspan="7" style="text-align:center; color:#999;">Nenhum ativo encontrado</td>'
+        tbody.appendChild(fallbackRow)
+    }
+
+    fallbackRow.style.display = visibleCount === 0 ? '' : 'none'
+}
+
+function renderHistory() {
+    const search = (document.getElementById('historySearch')?.value || '').toLowerCase()
+    const start = document.getElementById('historyDateStart')?.value
+    const end = document.getElementById('historyDateEnd')?.value
+    const tbody = document.querySelector('#historyTable tbody')
+    if (!tbody) return
+
+    const rows = Array.from(tbody.querySelectorAll('tr')).filter(row => row.dataset.fallback !== 'true')
+    let visibleCount = 0
+
+    rows.forEach(row => {
+        const rowAtivo = (row.dataset.ativo || '').toLowerCase()
+        const rowData = row.dataset.data || ''
+
+        const matchesText = !search || rowAtivo.includes(search)
+        const matchesStart = !start || rowData >= start
+        const matchesEnd = !end || rowData <= end
+
+        const visible = matchesText && matchesStart && matchesEnd
+        row.style.display = visible ? '' : 'none'
+        if (visible) visibleCount++
+    })
+
+    let fallbackRow = tbody.querySelector('tr[data-fallback="true"]')
+    if (!fallbackRow) {
+        fallbackRow = document.createElement('tr')
+        fallbackRow.dataset.fallback = 'true'
+        fallbackRow.innerHTML = '<td colspan="5" style="text-align:center; color:#999;">Nenhum evento encontrado</td>'
+        tbody.appendChild(fallbackRow)
+    }
+    fallbackRow.style.display = visibleCount === 0 ? '' : 'none'
+}
+
+function exportHTMLTableAsCSV(tableId, filename) {
+    const table = document.getElementById(tableId)
+    if (!table) return
+
+    const rows = Array.from(table.querySelectorAll('tbody tr'))
+        .filter(row => row.style.display !== 'none' && row.dataset.fallback !== 'true')
+
+    if (!rows.length) {
+        alert('Nenhum registro disponível para exportar.')
+        return
+    }
+
+    const csv = [
+        Array.from(table.querySelectorAll('thead th')).map(th => th.textContent.trim()).join(','),
+        ...rows.map(row => Array.from(row.querySelectorAll('td')).map(cell => `"${cell.textContent.trim().replace(/"/g, '""')}"`).join(','))
+    ].join('\r\n')
+
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+    const link = document.createElement('a')
+    link.href = URL.createObjectURL(blob)
+    link.setAttribute('download', filename)
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(link.href)
+}
+
+function getPDFReportSummary() {
+    const total = document.getElementById('reportTotal')?.textContent.trim() || '0'
+    const normal = document.getElementById('reportNormal')?.textContent.trim() || '0'
+    const atencao = document.getElementById('reportAtencao')?.textContent.trim() || '0'
+    const critico = document.getElementById('reportCritico')?.textContent.trim() || '0'
+    const setor = document.getElementById('reportSetor')?.value || 'Todos os setores'
+    const status = document.getElementById('reportStatus')?.value || 'Todos os status'
+    const busca = document.getElementById('searchReport')?.value.trim() || 'Nenhuma'
+
+    return `
+        <div class="pdf-header">
+            <div>
+                <h1>Relatório de Ativos</h1>
+                <p class="pdf-meta">Gerado em ${new Date().toLocaleString('pt-BR')}</p>
+            </div>
+            <div class="pdf-filters">
+                <p><strong>Setor:</strong> ${setor}</p>
+                <p><strong>Status:</strong> ${status}</p>
+                <p><strong>Busca:</strong> ${busca}</p>
+            </div>
+        </div>
+        <div class="pdf-summary-grid">
+            <div class="pdf-summary-card total">
+                <div class="pdf-summary-label">Total</div>
+                <div class="pdf-summary-value">${total}</div>
+            </div>
+            <div class="pdf-summary-card normal">
+                <div class="pdf-summary-label">Normal</div>
+                <div class="pdf-summary-value">${normal}</div>
+            </div>
+            <div class="pdf-summary-card warning">
+                <div class="pdf-summary-label">Atenção</div>
+                <div class="pdf-summary-value">${atencao}</div>
+            </div>
+            <div class="pdf-summary-card critical">
+                <div class="pdf-summary-label">Crítico</div>
+                <div class="pdf-summary-value">${critico}</div>
+            </div>
+        </div>`
+}
+
+async function exportTableToPDF(tableId, title) {
+    const table = document.getElementById(tableId)
+    if (!table || typeof html2canvas === 'undefined' || typeof window.jspdf === 'undefined') {
+        alert('Bibliotecas de PDF não estão disponíveis. Verifique a conexão com a internet.')
+        return
+    }
+
+    const clone = table.cloneNode(true)
+    clone.querySelectorAll('tr').forEach(row => {
+        if (row.style.display === 'none' || row.dataset.fallback === 'true') {
+            row.remove()
+        }
+    })
+
+    Array.from(clone.querySelectorAll('.usage-cell')).forEach(cell => {
+        const cells = Array.from(cell.querySelectorAll('.usage-chip')).map(badge => badge.textContent.trim())
+        cell.innerHTML = cells.join('<br>')
+    })
+
+    const summaryHTML = getPDFReportSummary()
+    const html = `
+        <html>
+            <head>
+                <title>${title}</title>
+                <style>
+                    body { font-family: Arial, sans-serif; margin: 24px; color: #111; background: #fff; }
+                    .pdf-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 20px; margin-bottom: 16px; }
+                    .pdf-header h1 { margin: 0 0 6px; font-size: 28px; color: #111; }
+                    .pdf-meta { margin: 0; color: #444; font-size: 0.92rem; }
+                    .pdf-filters p { margin: 3px 0; font-size: 0.92rem; color: #222; }
+                    .pdf-summary-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 20px; }
+                    .pdf-summary-card { border-radius: 10px; padding: 14px 16px; background: #fff; border: 1px solid #d1d5db; }
+                    .pdf-summary-card .pdf-summary-label { font-size: 0.78rem; color: #555; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 8px; }
+                    .pdf-summary-card .pdf-summary-value { font-size: 1.75rem; font-weight: 700; color: #111; }
+                    .pdf-summary-card.normal, .pdf-summary-card.warning, .pdf-summary-card.critical, .pdf-summary-card.total { background: #fff; border-color: #d1d5db; }
+                    table { width: 100%; border-collapse: collapse; margin-top: 0; font-size: 0.92rem; }
+                    th, td { border: 1px solid #d1d5db; padding: 10px 12px; text-align: left; vertical-align: top; }
+                    th { background: #f3f3f3; color: #111; font-weight: 700; }
+                    td { color: #111; line-height: 1.4; }
+                    .pdf-footer { margin-top: 20px; font-size: 0.85rem; color: #555; }
+                    .usage-cell { line-height: 1.35; }
+                </style>
+            </head>
+            <body>
+                ${summaryHTML}
+                ${clone.outerHTML}
+                <div class="pdf-footer">Relatório gerado automaticamente pelo Cybermonitoring</div>
+            </body>
+        </html>`
+
+    const pdfWindow = window.open('', '_blank')
+    if (!pdfWindow) {
+        alert('Não foi possível abrir a janela de PDF. Verifique as configurações do navegador.')
+        return
+    }
+
+    pdfWindow.document.write(html)
+    pdfWindow.document.close()
+
+    try {
+        const doc = pdfWindow.document
+        const body = doc.body
+        const canvas = await html2canvas(body, {
+            scale: 2,
+            useCORS: true,
+            backgroundColor: '#ffffff'
+        })
+        const imgData = canvas.toDataURL('image/png')
+        const { jsPDF } = window.jspdf
+        const pdf = new jsPDF('landscape', 'pt', 'a4')
+        const imgProps = pdf.getImageProperties(imgData)
+        const pdfWidth = pdf.internal.pageSize.getWidth()
+        const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width
+        pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight)
+        pdf.save('relatorio_ativos.pdf')
+        pdfWindow.close()
+    } catch (erro) {
+        console.error('Erro ao gerar PDF:', erro)
+        alert('Falha ao gerar o PDF. Verifique o console para mais detalhes.')
+    }
+}
+
+function exportWord() {
+    const table = document.getElementById('reportTable')
+    if (!table) return
+
+    const clone = table.cloneNode(true)
+    clone.querySelectorAll('tr').forEach(row => {
+        if (row.style.display === 'none' || row.dataset.fallback === 'true') {
+            row.remove()
+        }
+    })
+
+    const html = `
+        <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
+            <head>
+                <meta charset="utf-8">
+                <title>Relatório de Ativos</title>
+            </head>
+            <body>
+                <h1>Relatório de Ativos</h1>
+                ${clone.outerHTML}
+            </body>
+        </html>`
+
+    const blob = new Blob(['\ufeff', html], { type: 'application/msword' })
+    const link = document.createElement('a')
+    link.href = URL.createObjectURL(blob)
+    link.download = 'relatorio_ativos.doc'
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(link.href)
+}
+
+function printReport() {
+    window.print()
+}
+
+function exportPDF() {
+    exportTableToPDF('reportTable', 'Relatório de Ativos')
+}
+
+function exportExcel() {
+    exportHTMLTableAsCSV('reportTable', 'relatorio_ativos.csv')
+}
+
+function exportHistoryPDF() {
+    exportTableToPDF('historyTable', 'Histórico de Eventos')
+}
+
+function exportHistoryExcel() {
+    exportHTMLTableAsCSV('historyTable', 'historico_eventos.csv')
+}
+
+async function clearHistory() {
+    if (!confirm('Deseja limpar todo o histórico de eventos? Esta ação não pode ser desfeita.')) return
+
+    try {
+        const res = await fetch('/admin/relatorios/limpar-historico', { method: 'POST' })
+        const json = await res.json()
+        if (!json.sucesso) throw new Error(json.mensagem || 'Erro ao limpar histórico')
+        window.location.reload()
+    } catch (erro) {
+        console.error('Erro ao limpar histórico:', erro)
+        alert('Não foi possível limpar o histórico.')
+    }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    const reportTable = document.getElementById('reportTable')
+    if (!reportTable) return
+
+    window.reportSetores = Array.isArray(window.reportSetores) ? window.reportSetores : []
+
+    fillSetorOptions()
+    renderReport()
+    renderHistory()
+
+    const reportSetor = document.getElementById('reportSetor')
+    const reportStatus = document.getElementById('reportStatus')
+    const searchReport = document.getElementById('searchReport')
+
+    reportSetor?.addEventListener('change', renderReport)
+    reportStatus?.addEventListener('change', renderReport)
+    searchReport?.addEventListener('input', renderReport)
+    searchReport?.addEventListener('keyup', renderReport)
+
+    document.getElementById('historySearch')?.addEventListener('input', renderHistory)
+    document.getElementById('historyDateStart')?.addEventListener('change', renderHistory)
+    document.getElementById('historyDateEnd')?.addEventListener('change', renderHistory)
+})
+
+// Observações field removed; no toggle required

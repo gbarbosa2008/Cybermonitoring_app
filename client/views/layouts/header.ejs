@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CyberMonitoring</title>
+
+    <!-- IMPORTAÇÃO FONT AWESOME -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <!-- IMPORTAÇÃO DO BOOTSTRAP -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/css/bootstrap.min.css" rel="stylesheet"
+        integrity="sha384-LN+7fdVzj6u52u30Kp6M/trliBMCMKTyK833zpbD+pXdCLuTusPj697FH4R/5mcr" crossorigin="anonymous" />
+
+    <!-- IMPORTAÇÃO DO CSS -->
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+
+<body>
+    <!-- SE TIVER LOGADO - EXIBE SIDEBAR -->
+    <% if (typeof usuario !=='undefined' && usuario) { %>
+        <div class="page">
+            <!-- SIDEBAR LATERAL -->
+            <aside class="sidebar">
+                <!-- LOGO/TÍTULO -->
+                <div class="brand">CYBERMONITORING</div>
+
+                <!-- DADOS DO USUÁRIO -->
+                <div class="user-card">
+                    <div class="user-avatar">
+                        <%= usuario.nome.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase() %>
+                    </div>
+                    <div class="user-info">
+                        <span class="user-name"><%= usuario.nome %></span>
+                        <span class="user-role"><%= usuario.perfil %></span>
+                    </div>
+                </div>
+
+                <!-- MENU NAVEGAÇÃO -->
+                <nav>
+                    <ul>
+                        <!-- MENU ADMINISTRADOR -->
+                        <% if (usuario.perfil==='Administrador') { %>
+                            <li><a href="/painel" class="nav-link">Painel</a></li>
+                            <li><a href="/gerenciar-computadoresAdmin" class="nav-link">Gerenciar Computadores</a></li>
+                            <li><a href="/usuarios" class="nav-link">Gerenciar Usuários</a></li>
+                            <li><a href="/admin/relatorios" class="nav-link">Relatórios</a></li>
+                        <% } %>
+                            
+                        <!-- MENU TÉCNICO -->
+                        <% if (usuario.perfil==='Tecnico') { %>
+                            <li><a href="/tecnico" class="nav-link">Painel</a></li>
+                            <li><a href="/tecnico/gerenciar-computadores" class="nav-link">Gerenciar Computadores</a></li>
+                            <li><a href="/tecnico/relatorios" class="nav-link">Relatórios</a></li>
+                        <% } %>
+                    </ul>
+                </nav>
+
+                <script>
+                    document.addEventListener('DOMContentLoaded', () => {
+                        const navLinks = document.querySelectorAll('.sidebar nav a.nav-link');
+                        const currentPath = window.location.pathname;
+
+                        navLinks.forEach(link => {
+                            const href = link.getAttribute('href');
+                            link.classList.remove('active');
+                            if (currentPath === href || currentPath.startsWith(href + '/')) {
+                                link.classList.add('active');
+                            }
+                        });
+                    });
+                </script>
+
+                <!-- BOTÃO SAIR -->
+                <button class="logout" onclick="fetch('/usuarios/logout').then(() => window.location.href = '/login')">Sair</button>
+            </aside>
+
+            <!-- CONTEÚDO PRINCIPAL -->
+            <div class="main-wrapper">
+
+    <!-- MODAL DE ERRO -->
+    <%- include('modal-erro') %>
+
+                <% } %>

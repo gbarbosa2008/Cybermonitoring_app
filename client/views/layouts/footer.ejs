@@ -1,0 +1,40 @@
+        </div>
+        <!-- FIM MAIN-WRAPPER -->
+    <% } %>
+    </div>
+    <!-- FIM PAGE -->
+
+    <!-- FOOTER -->
+    <footer class="footer-sistema">
+        <p>&copy; 2024 CyberMonitoring. Todos os direitos reservados.</p>
+    </footer>
+
+    <!-- MODAL DE ERRO -->
+    <%- include('modal-erro') %>
+
+    <!-- SCRIPTS BOOTSTRAP -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- SCRIPT GERAL -->
+    <script src="/js/script.js"></script>
+
+    <!-- SCRIPT PARA MARCAR LINK ATIVO NO MENU -->
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const navLinks = document.querySelectorAll('.sidebar nav a.nav-link');
+            const currentPath = window.location.pathname;
+
+            navLinks.forEach(link => {
+                const href = link.getAttribute('href');
+                // Verifica se a URL atual corresponde ao link
+                if (currentPath === href || currentPath.startsWith(href + '/')) {
+                    link.classList.add('active');
+                } else {
+                    link.classList.remove('active');
+                }
+            });
+        });
+    </script>
+</body>
+
+</html>

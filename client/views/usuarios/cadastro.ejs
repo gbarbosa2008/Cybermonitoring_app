@@ -1,0 +1,79 @@
+<%- include('../layouts/header') %>
+
+<div class="main">
+  <header>
+    <div>
+      <h1>Gerenciar Usuários</h1>
+      <p>Cadastro e edição de ativos</p>
+    </div>
+  </header>
+
+  <!-- FORMULÁRIO CADASTRO/EDIÇÃO -->
+  <div class="card card-form">
+    <div class="card-header">
+      <h5 class="card-title">Cadastrar/Editar Usuário</h5>
+    </div>
+    <div class="card-body">
+      <form action="/usuarios/cadastrar" method="POST" class="row g-2">
+        <div class="col-md-6">
+          <label for="nome" class="form-label">Nome</label>
+          <input type="text" class="form-control" id="nome" name="nome" placeholder="Insira seu Nome" required>
+        </div>
+
+        <div class="col-md-6">
+          <label for="email" class="form-label">Email</label>
+          <input type="email" class="form-control" id="email" name="email" placeholder="Digite seu email" required>
+        </div>
+
+        <div class="col-md-6">
+          <label for="senha" class="form-label">Senha</label>
+          <input type="password" class="form-control" id="senha" name="senha" placeholder="Mínimo 6 caracteres" required>
+        </div>
+
+        <div class="col-md-6">
+          <label for="id_perfil" class="form-label">Role</label>
+          <select name="id_perfil" class="form-control" id="id_perfil" required>
+            <option value="">Selecione um role</option>
+            <% if (perfis && perfis.length) { %>
+              <% perfis.forEach(p => { %>
+                <option value="<%= p.id_perfil %>"><%= p.nome_perfil %></option>
+              <% }) %>
+            <% } %>
+          </select>
+        </div>
+
+        <div class="col-md-6">
+          <label for="status" class="form-label">Status</label>
+          <select name="status" class="form-control" id="status">
+            <option value="ATIVO">Ativo</option>
+            <option value="INATIVO">Inativo</option>
+          </select>
+        </div>
+
+        <div class="col-12">
+          <div class="button-group">
+            <button type="submit" class="btn btn-primary btn-save">
+              Salvar Usuário
+            </button>
+            <button type="reset" class="btn btn-secondary btn-clear">
+              Limpar
+            </button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- SEÇÃO DE LISTA -->
+  <div class="card card-list mt-4">
+    <div class="card-header">
+      <h5 class="card-title">Lista de Usuários</h5>
+    </div>
+    <div class="card-body">
+      <div class="table-responsive">
+        <%- include('listar_partial', { usuarios: usuarios || [] }) %>
+      </div>
+    </div>
+  </div>
+</div>
+

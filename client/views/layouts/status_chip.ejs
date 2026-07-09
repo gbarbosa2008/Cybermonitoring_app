@@ -1,0 +1,7 @@
+<%
+  const normalizedStatus = (status || '').toString().trim().toUpperCase().normalize('NFD').replace(/\p{Diacritic}/gu, '')
+  const statusClass = normalizedStatus === 'ATENCAO' ? 'warning' : normalizedStatus === 'CRITICO' ? 'critical' : 'good'
+%>
+<span class="status-chip <%= statusClass %>">
+  <%= status ? status : 'Sem status' %>
+</span>

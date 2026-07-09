@@ -1,0 +1,67 @@
+<%- include('../layouts/header') %>
+
+<div class="main">
+  <header>
+    <div>
+      <h1>Editar Usuário</h1>
+      <p>Modificar dados do usuário</p>
+    </div>
+  </header>
+
+  <!-- FORMULÁRIO DE EDIÇÃO -->
+  <div class="card card-form">
+    <div class="card-header">
+      <h5 class="card-title">Editar Usuário</h5>
+    </div>
+    <div class="card-body">
+      <form action="/usuarios/<%= usuario.id_usuario %>/editar" method="POST" class="row g-2">
+        <div class="col-md-6">
+          <label for="nome" class="form-label">Nome</label>
+          <input type="text" class="form-control" id="nome" name="nome" value="<%= usuario.nome %>" required>
+        </div>
+
+        <div class="col-md-6">
+          <label for="email" class="form-label">Email</label>
+          <input type="email" class="form-control" id="email" name="email" value="<%= usuario.email %>" required>
+        </div>
+
+        <div class="col-md-6">
+          <label for="id_perfil" class="form-label">Role</label>
+          <select name="id_perfil" class="form-control" id="id_perfil" required>
+            <% if (perfis && perfis.length) { %>
+              <% perfis.forEach(p => { %>
+                <option value="<%= p.id_perfil %>" <%= (p.id_perfil == usuario.id_perfil) ? 'selected' : '' %>><%= p.nome_perfil %></option>
+              <% }) %>
+            <% } %>
+          </select>
+        </div>
+
+        <div class="col-md-6">
+          <label for="status" class="form-label">Status</label>
+          <select name="status" class="form-control" id="status" required>
+            <option value="ATIVO" <%= usuario.status === 'ATIVO' ? 'selected' : '' %>>Ativo</option>
+            <option value="INATIVO" <%= usuario.status !== 'ATIVO' ? 'selected' : '' %>>Inativo</option>
+          </select>
+        </div>
+
+        <div class="col-md-6">
+          <label for="senha" class="form-label">Senha</label>
+          <input type="password" class="form-control" id="senha" name="senha" placeholder="Deixe em branco para não alterar">
+        </div>
+
+        <div class="col-12">
+          <div class="button-group">
+            <button type="submit" class="btn btn-primary btn-save">
+              Salvar Alterações
+            </button>
+            <a href="/usuarios" class="btn btn-secondary btn-clear">
+              Voltar
+            </a>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+
