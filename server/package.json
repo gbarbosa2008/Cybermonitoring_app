@@ -1,6 +1,7 @@
 {
   "scripts": {
-    "server": "nodemon ./server.js localhost 3000"
+    "server": "nodemon ./server.js localhost 3000",
+    "start": "npm run server"
   },
   "dependencies": {
     "bcrypt": "^6.0.0",
