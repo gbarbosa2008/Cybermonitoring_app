@@ -1,5 +1,5 @@
 # Dependências
-node_modules/
+server/node_modules
 
 # Variáveis de ambiente
-.env
+server/.env
